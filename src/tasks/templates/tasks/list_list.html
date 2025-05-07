@@ -1,0 +1,82 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Mis Listas{% endblock %}
+{% block content %}
+  <h2>Mis Listas</h2>
+
+  <!-- Formulario para crear nueva lista -->
+  <form id="form-new-list" class="form-inline">
+    <input id="input-new-list" type="text" placeholder="Nombre de la lista…" required>
+    <button type="submit">Crear</button>
+  </form>
+
+  <div id="lists-container" class="grid"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('lists-container');
+
+      // Función para pintar una tarjeta de lista
+      function renderList(l) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `list-${l.id}`;
+        card.innerHTML = `
+          <h3>${l.name}</h3>
+          <p>Creada: ${new Date(l.created_at).toLocaleDateString()}</p>
+          <p>
+            <a href="/lists/${l.id}/">Ver tareas</a> |
+            <a href="#" class="edit"  data-id="${l.id}">✏️</a> |
+            <a href="#" class="delete" data-id="${l.id}">🗑️</a>
+          </p>
+        `;
+        container.appendChild(card);
+      }
+
+      // Carga inicial
+      fetch('/api/lists/')
+        .then(r => r.json())
+        .then(data => data.forEach(renderList));
+
+      // Crear nueva lista
+      document.getElementById('form-new-list').addEventListener('submit', e => {
+        e.preventDefault();
+        const name = document.getElementById('input-new-list').value.trim();
+        if (!name) return;
+        fetch('/api/lists/', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({name})
+        })
+        .then(r => r.json())
+        .then(l => {
+          renderList(l);
+          document.getElementById('input-new-list').value = '';
+        });
+      });
+
+      // Delegación para Editar/Borrar
+      container.addEventListener('click', e => {
+        const id = e.target.dataset.id;
+        if (e.target.matches('.delete')) {
+          // DELETE
+          fetch(`/api/lists/${id}/`, {method:'DELETE'})
+            .then(() => document.getElementById(`list-${id}`).remove());
+        }
+        if (e.target.matches('.edit')) {
+          const newName = prompt('Nuevo nombre:', 
+                                  document.querySelector(`#list-${id} h3`).textContent);
+          if (!newName) return;
+          fetch(`/api/lists/${id}/`, {
+            method: 'PATCH',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({name: newName})
+          })
+          .then(r => r.json())
+          .then(l => {
+            document.querySelector(`#list-${id} h3`).textContent = l.name;
+          });
+        }
+      });
+    });
+  </script>
+{% endblock %}

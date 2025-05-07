@@ -1,0 +1,88 @@
+{% extends 'tasks/base.html' %}
+
+{% block title %}Mis Etiquetas{% endblock %}
+{% block content %}
+  <h2>Etiquetas</h2>
+
+  <!-- Formulario para crear nueva etiqueta -->
+  <form id="form-new-label" class="form-inline">
+    <input id="input-name"  type="text" placeholder="Nombre…" required>
+    <input id="input-color" type="color" value="#ff0000">
+    <button type="submit">Crear</button>
+  </form>
+
+  <div id="labels-container" class="grid"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const container = document.getElementById('labels-container');
+
+      // Funcion para pintar una etiqueta
+      function renderLabel(l) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `label-${l.id}`;
+        card.innerHTML = `
+          <h3 style="color:${l.color}">● ${l.name}</h3>
+          <p>
+            <a href="/labels/${l.id}/">Detalle</a> |
+            <a href="#" class="edit"  data-id="${l.id}">✏️</a> |
+            <a href="#" class="delete" data-id="${l.id}">🗑️</a>
+          </p>
+        `;
+        container.appendChild(card);
+      }
+
+      // Carga inicial
+      fetch('/api/labels/')
+        .then(r => r.json())
+        .then(data => data.forEach(renderLabel));
+
+      // Crear etiqueta
+      document.getElementById('form-new-label').addEventListener('submit', e => {
+        e.preventDefault();
+        const name  = document.getElementById('input-name').value.trim();
+        const color = document.getElementById('input-color').value;
+        if (!name) return;
+        fetch('/api/labels/', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({name, color})
+        })
+        .then(r => r.json())
+        .then(l => {
+          renderLabel(l);
+          e.target.reset();
+          document.getElementById('input-color').value = '#ff0000';
+        });
+      });
+
+      // Editar / Borrar (delegación)
+      container.addEventListener('click', e => {
+        const id = e.target.dataset.id;
+        if (e.target.matches('.delete')) {
+          fetch(`/api/labels/${id}/`, {method:'DELETE'})
+            .then(() => document.getElementById(`label-${id}`).remove());
+        }
+        if (e.target.matches('.edit')) {
+          const newName  = prompt('Nuevo nombre:', 
+                            document.querySelector(`#label-${id} h3`).textContent.slice(2));
+          const newColor = prompt('Nuevo color (hex):', 
+                            document.querySelector(`#label-${id} h3`).style.color);
+          if (!newName || !newColor) return;
+          fetch(`/api/labels/${id}/`, {
+            method:'PATCH',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({name:newName, color:newColor})
+          })
+          .then(r => r.json())
+          .then(l => {
+            const h3 = document.querySelector(`#label-${id} h3`);
+            h3.textContent = `● ${l.name}`;
+            h3.style.color   = l.color;
+          });
+        }
+      });
+    });
+  </script>
+{% endblock %}

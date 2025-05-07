@@ -1,0 +1,99 @@
+{% extends 'tasks/base.html' %}
+{% block title %}Tareas de la Lista{% endblock %}
+{% block content %}
+  <h2>Tareas de la Lista #{{ list_id }}</h2>
+
+  <!-- Formulario para crear nueva tarea -->
+  <form id="form-new-task" class="form-inline">
+    <input id="input-title" type="text"   placeholder="Título…" required>
+    <input id="input-desc"  type="text"   placeholder="Descripción…">
+    <input id="input-date"  type="date"                          >
+    <select id="input-prio">
+      <option value="low">Baja</option>
+      <option value="medium" selected>Media</option>
+      <option value="high">Alta</option>
+    </select>
+    <button type="submit">Agregar</button>
+  </form>
+
+  <div id="tasks-container" class="grid"></div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const listId = {{ list_id }};
+      const container = document.getElementById('tasks-container');
+
+      function renderTask(t) {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.id = `task-${t.id}`;
+        card.innerHTML = `
+          <h3>${t.title}</h3>
+          <p>${t.description || ''}</p>
+          <p>Due: ${t.due_date || '—'} | Prio: ${t.priority}</p>
+          <p>Estado: ${t.completed ? '✅' : '⌛'}</p>
+          <p>
+            <button class="complete" data-id="${t.id}">${t.completed ? '✅' : '✔️'}</button>
+            <button class="edit"     data-id="${t.id}">✏️</button>
+            <button class="delete"   data-id="${t.id}">🗑️</button>
+          </p>
+        `;
+        container.appendChild(card);
+      }
+
+      // Carga inicial
+      fetch(`/api/tasks/?lista=${listId}`)
+        .then(r => r.json())
+        .then(data => data.forEach(renderTask));
+
+      // Crear tarea
+      document.getElementById('form-new-task').addEventListener('submit', e => {
+        e.preventDefault();
+        const payload = {
+          lista:     listId,
+          title:     document.getElementById('input-title').value,
+          description: document.getElementById('input-desc').value,
+          due_date:    document.getElementById('input-date').value,
+          priority:    document.getElementById('input-prio').value,
+        };
+        fetch('/api/tasks/', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        })
+        .then(r => r.json())
+        .then(t => {
+          renderTask(t);
+          e.target.reset();
+        });
+      });
+
+      // Delegación para complete/edit/delete
+      container.addEventListener('click', e => {
+        const id = e.target.dataset.id;
+        if (e.target.matches('.complete')) {
+          fetch(`/api/tasks/${id}/complete/`, {method:'POST'})
+            .then(() => {
+              e.target.textContent = '✅';
+              document.querySelector(`#task-${id} p:nth-child(4)`).textContent = 'Estado: ✅';
+            });
+        }
+        if (e.target.matches('.delete')) {
+          fetch(`/api/tasks/${id}/`, {method:'DELETE'})
+            .then(() => document.getElementById(`task-${id}`).remove());
+        }
+        if (e.target.matches('.edit')) {
+          const title = prompt('Nuevo título:', document.querySelector(`#task-${id} h3`).textContent);
+          if (!title) return;
+          fetch(`/api/tasks/${id}/`, {
+            method:'PATCH',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({title})
+          })
+          .then(r => r.json())
+          .then(t => document.querySelector(`#task-${id} h3`).textContent = t.title);
+        }
+      });
+    });
+  </script>
+{% endblock %}

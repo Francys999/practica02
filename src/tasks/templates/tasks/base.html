@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>{% block title %}Gestión de Tareas{% endblock %}</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'tasks/css/styles.css' %}">
+</head>
+<body>
+  <header>
+    <h1>Sistema de Gestión de Tareas</h1>
+    <nav>
+        +    <a href="{% url 'list_list' %}">Listas</a>
+        +    <a href="{% url 'label_list' %}">Etiquetas</a>
+           </nav>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
